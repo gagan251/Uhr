@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Uhrzeit Trainer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap">
+<style>
+/* Layout: a live sky scene sits behind a glass workspace. Clock card on the left, lesson / quiz / practice panel on the right; stacks on phones. */
+:root{
+  --navy:#0b2a5b; --blue:#1d6fe8; --blue-soft:#4aa3ff; --ice:#eaf3ff; --white:#ffffff;
+  --ink:#0b2a5b; --ink-soft:#4a5f86; --line:#cfe0f7;
+  --good:#13935f; --good-bg:#e3f6ed; --bad:#d23f5a; --bad-bg:#fde8ec;
+  --k-nach:#1d6fe8; --k-vor:#5546d6; --k-halb:#0a8f9c; --k-viertel:#8a46d1; --k-uhr:#0b2a5b; --k-hour:#3b5f9a; --k-num:#1b5fb8; --k-plain:#0b2a5b;
+  --font-display:"Fredoka","Trebuchet MS",system-ui,sans-serif;
+  --font-body:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --bg:#62b0fb;
+}
+@property --glow{syntax:"<color>";inherits:true;initial-value:rgba(255,230,130,.65)}
+@property --cloud{syntax:"<color>";inherits:true;initial-value:rgba(255,255,255,.96)}
+*{box-sizing:border-box}
+html{color-scheme:light}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px;min-height:100vh}
+button{font:inherit;color:inherit;cursor:pointer}
+h1,h2,h3{font-family:var(--font-display);margin:0;font-weight:600;text-wrap:balance}
+:focus-visible{outline:3px solid var(--blue-soft);outline-offset:2px}
+
+/* ---------- Sky ---------- */
+.sky{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;transition:--glow 2.4s,--cloud 2.4s;--ox:50%;--oy:20%;
+  --hill-a:#2f8fe0;--hill-b:#1f6fc4;--glow:rgba(255,230,130,.65);--cloud:rgba(255,255,255,.96)}
+.sky[data-phase=evening]{--hill-a:#6a3f8f;--hill-b:#3d2a68;--glow:rgba(255,130,70,.6);--cloud:rgba(255,196,170,.8)}
+.sky[data-phase=night]{--hill-a:#14306b;--hill-b:#0a1c47;--glow:rgba(180,200,255,.35);--cloud:rgba(120,140,200,.22)}
+.layer{position:absolute;inset:0;opacity:0;transition:opacity 2.4s ease}
+.l-day{background:linear-gradient(180deg,#2a78e0 0%,#62b0fb 55%,#d4ebff 100%)}
+.l-evening{background:linear-gradient(180deg,#27285f 0%,#7d4a9c 38%,#ff8a5c 72%,#ffc982 100%)}
+.l-night{background:linear-gradient(180deg,#040b26 0%,#0b1f55 55%,#17336f 100%)}
+.sky[data-phase=day] .l-day,.sky[data-phase=evening] .l-evening,.sky[data-phase=night] .l-night{opacity:1}
+.sun,.moon{position:absolute;left:var(--ox);top:var(--oy);width:84px;height:84px;margin:-42px 0 0 -42px;border-radius:50%;opacity:0;
+  transition:opacity 2s ease,left 3s ease,top 3s ease,filter 2.4s ease}
+.sun::before,.moon::before{content:"";position:absolute;inset:-70%;border-radius:50%;background:radial-gradient(circle,var(--glow) 0%,transparent 66%);animation:glow 5s ease-in-out infinite}
+.sun{background:radial-gradient(circle,#fffdf0 0%,#ffe27a 62%,#ffcf4a 100%)}
+.sky[data-phase=evening] .sun{filter:hue-rotate(-24deg) saturate(1.5)}
+.sky[data-phase=day] .sun,.sky[data-phase=evening] .sun,.sky[data-phase=night] .moon{opacity:1}
+.moon{background:radial-gradient(circle at 35% 35%,#ffffff 0%,#e9eefc 55%,#c7d2f2 100%)}
+.moon::after{content:"";position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(circle at 62% 60%,rgba(120,135,180,.28) 0 9%,transparent 10%),radial-gradient(circle at 36% 68%,rgba(120,135,180,.22) 0 6%,transparent 7%),radial-gradient(circle at 55% 28%,rgba(120,135,180,.2) 0 5%,transparent 6%)}
+@keyframes glow{0%,100%{transform:scale(.94);opacity:.8}50%{transform:scale(1.08);opacity:1}}
+.cloud{position:absolute;left:0;height:56px;width:190px;border-radius:60px;background:var(--cloud);scale:var(--s,1);animation:drift 100s linear infinite}
+.cloud::before,.cloud::after{content:"";position:absolute;background:inherit;border-radius:50%}
+.cloud::before{width:84px;height:84px;left:28px;top:-40px}
+.cloud::after{width:64px;height:64px;left:98px;top:-28px}
+.c1{top:14%;animation-duration:120s;animation-delay:-30s}
+.c2{top:30%;--s:.7;animation-duration:150s;animation-delay:-95s}
+.c3{top:48%;--s:1.2;animation-duration:180s;animation-delay:-60s}
+.c4{top:22%;--s:.55;animation-duration:100s;animation-delay:-10s}
+@keyframes drift{from{transform:translateX(-300px)}to{transform:translateX(calc(100vw + 300px))}}
+.stars{position:absolute;inset:0;opacity:0;transition:opacity 2.4s ease}
+.sky[data-phase=night] .stars{opacity:1}
+.star{position:absolute;width:2px;height:2px;border-radius:50%;background:#fff;animation:twinkle var(--d,3s) ease-in-out infinite var(--dl,0s)}
+@keyframes twinkle{0%,100%{opacity:.25;transform:scale(.8)}50%{opacity:1;transform:scale(1.5)}}
+.shoot{position:absolute;top:10%;left:78%;width:120px;height:2px;background:linear-gradient(90deg,#fff,transparent);opacity:0;animation:shoot 12s linear infinite 3s}
+@keyframes shoot{0%{opacity:0;transform:translate(0,0) rotate(-30deg)}2%{opacity:1}8%{opacity:0;transform:translate(-340px,196px) rotate(-30deg)}100%{opacity:0}}
+.hills{position:absolute;left:0;right:0;bottom:0;width:100%;height:22vh;min-height:120px}
+.hills path{transition:fill 2.4s ease}
+.hills .ha{fill:var(--hill-a)}.hills .hb{fill:var(--hill-b)}
+
+/* ---------- Shell ---------- */
+.wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.card{background:rgba(255,255,255,.86);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.75);border-radius:24px;padding:20px;box-shadow:0 18px 50px rgba(8,30,80,.26)}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:12px 20px;flex-wrap:wrap;padding:14px 20px}
+.brand h1{font-size:clamp(26px,5vw,36px);line-height:1.1;color:var(--blue)}
+.brand h1 b{color:var(--navy);font-weight:700}
+.brand p{margin:2px 0 0;color:var(--ink-soft);font-weight:600}
+.skybox{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.chip-live{display:inline-flex;align-items:center;gap:8px;background:var(--ice);border-radius:999px;padding:6px 12px;font-weight:700;font-size:14px;font-variant-numeric:tabular-nums}
+.chip-live i{width:9px;height:9px;border-radius:50%;background:var(--good);animation:blink 2s ease-in-out infinite}
+@keyframes blink{50%{opacity:.35}}
+.seg{display:inline-flex;background:var(--ice);border-radius:999px;padding:4px;gap:2px}
+.seg button{border:0;background:transparent;border-radius:999px;padding:6px 12px;font-weight:700;font-size:14px;color:var(--ink-soft);transition:background .2s,color .2s}
+.seg button:hover{color:var(--ink)}
+.seg button[aria-pressed=true],.seg button[aria-selected=true]{background:var(--blue);color:#fff}
+.tabs{align-self:center;display:flex;background:rgba(255,255,255,.9);border-radius:999px;padding:5px;gap:4px;box-shadow:0 10px 30px rgba(8,30,80,.2);max-width:100%}
+.tabs button{border:0;background:transparent;border-radius:999px;padding:10px 22px;font-family:var(--font-display);font-weight:600;font-size:18px;color:var(--ink-soft);transition:background .2s,color .2s}
+.tabs button[aria-selected=true]{background:var(--blue);color:#fff}
+.tabs button:hover:not([aria-selected=true]){color:var(--ink)}
+.grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:20px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+
+/* ---------- Clock ---------- */
+.clock-card{display:flex;flex-direction:column;align-items:center;gap:14px}
+.clock{width:100%;max-width:440px;height:auto;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;filter:drop-shadow(0 10px 24px rgba(8,30,80,.25))}
+.clock.dragging{cursor:grabbing}
+.clock.locked{pointer-events:none;cursor:default}
+.clock .num circle{fill:transparent;transition:fill .2s,stroke .2s}
+.clock .num text{font-family:var(--font-display);font-size:34px;font-weight:600;fill:var(--navy);text-anchor:middle;dominant-baseline:central;transition:fill .2s}
+.clock .num:hover circle{fill:var(--ice)}
+.clock .num.is-hour circle{stroke:var(--blue);stroke-width:3;fill:var(--ice)}
+.clock .num.is-min circle{fill:var(--blue)}
+.clock .num.is-min text{fill:#fff}
+.clock .mlab{font-family:var(--font-body);font-size:11px;font-weight:700;fill:#7f97c2;text-anchor:middle;dominant-baseline:central}
+.hand{transform-origin:200px 200px;transition:transform .55s cubic-bezier(.3,1.25,.5,1)}
+.clock.dragging .hand{transition:transform .08s linear}
+.digital{font-family:var(--font-display);font-size:44px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums;color:var(--navy)}
+.digital small{font-size:16px;color:var(--ink-soft);margin-left:6px;font-weight:500}
+.controls{display:flex;flex-direction:column;gap:12px;width:100%;align-items:center}
+.ctl-row{display:flex;gap:10px 14px;flex-wrap:wrap;justify-content:center;align-items:center}
+.stepper{display:inline-flex;align-items:center;background:var(--ice);border-radius:14px;overflow:hidden}
+.stepper span{padding:0 12px;font-weight:700;font-size:14px;color:var(--ink-soft)}
+.stepper button{border:0;background:transparent;width:40px;height:40px;font-size:20px;font-weight:800;color:var(--blue)}
+.stepper button:hover{background:#d8e8ff}
+.mins{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;width:100%;max-width:380px}
+.mins button{border:1px solid var(--line);background:#fff;border-radius:12px;padding:7px 0;font-weight:800;font-size:14px;font-variant-numeric:tabular-nums;color:var(--ink-soft);transition:all .15s}
+.mins button:hover{border-color:var(--blue);color:var(--blue)}
+.mins button[aria-pressed=true]{background:var(--blue);border-color:var(--blue);color:#fff}
+
+/* ---------- Panels ---------- */
+.panel{display:flex;flex-direction:column;gap:16px;min-width:0}
+.panel>section{display:flex;flex-direction:column;gap:16px}
+.eyebrow{margin:0;font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft)}
+.answer{background:linear-gradient(180deg,#fff,var(--ice));border:1px solid var(--line);border-radius:20px;padding:16px 18px;display:flex;flex-direction:column;gap:6px}
+.de-sentence{margin:0;font-family:var(--font-display);font-weight:600;font-size:clamp(26px,4.6vw,34px);line-height:1.2;text-wrap:balance}
+.de-sentence span{color:var(--kc,var(--ink))}
+.en-sentence{margin:0;font-size:18px;font-weight:700;color:var(--ink-soft)}
+.answer-foot{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px}
+.btn{border:0;background:var(--blue);color:#fff;font-weight:800;border-radius:14px;padding:10px 16px;transition:transform .15s,background .15s,box-shadow .15s;box-shadow:0 6px 16px rgba(29,111,232,.3)}
+.btn:hover{transform:translateY(-1px);background:#165fcc}
+.btn:active{transform:translateY(0)}
+.btn.ghost{background:#fff;color:var(--blue);border:1px solid var(--line);box-shadow:none}
+.btn.ghost:hover{background:var(--ice)}
+.btn.sm{padding:6px 12px;font-size:14px;border-radius:10px}
+.words{display:flex;flex-wrap:wrap;gap:10px}
+.w{background:#fff;border:1px solid var(--line);border-bottom:4px solid var(--kc,var(--ink));border-radius:14px;padding:8px 14px;text-align:center;animation:pop .35s ease backwards}
+.w b{display:block;font-family:var(--font-display);font-size:22px;font-weight:600;color:var(--kc,var(--ink))}
+.w span{display:block;font-size:13px;font-weight:700;color:var(--ink-soft)}
+@keyframes pop{from{opacity:0;transform:translateY(8px)}}
+.k-nach{--kc:var(--k-nach)}.k-vor{--kc:var(--k-vor)}.k-halb{--kc:var(--k-halb)}.k-viertel{--kc:var(--k-viertel)}
+.k-uhr{--kc:var(--k-uhr)}.k-hour{--kc:var(--k-hour)}.k-num{--kc:var(--k-num)}.k-plain{--kc:var(--k-plain)}
+.note{margin:0;background:var(--ice);border-left:4px solid var(--blue);border-radius:6px 14px 14px 6px;padding:10px 14px;font-weight:600}
+h3{font-size:19px;color:var(--navy)}
+.quick{display:flex;flex-wrap:wrap;gap:8px}
+.quick button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 14px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--blue)}
+.quick button:hover{background:var(--ice)}
+.quick button[aria-pressed=true]{background:var(--blue);border-color:var(--blue);color:#fff}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.rule{background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:4px;min-width:0;transition:border-color .2s,box-shadow .2s,background .2s}
+.rule.active{border-color:var(--blue);background:var(--ice);box-shadow:0 0 0 3px rgba(29,111,232,.18)}
+.rt{font-family:var(--font-display);font-size:21px;font-weight:600;color:var(--kc)}
+.re{font-weight:700;color:var(--ink-soft);font-size:14px}
+.rx{font-size:14px;font-weight:600;margin-bottom:6px}
+.rule .btn{align-self:flex-start;margin-top:auto}
+.dots{display:flex;flex-wrap:wrap;gap:6px}
+.dots i{font-style:normal;font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;padding:4px 10px;border-radius:999px;background:#eef3fb;color:#8aa0c8;transition:all .3s}
+.dots i.on{background:var(--blue);color:#fff}
+details.how{background:#fff;border:1px solid var(--line);border-radius:16px;padding:10px 14px}
+details.how summary{cursor:pointer;font-weight:800;color:var(--blue)}
+details.how .words{margin-top:12px}
+
+/* ---------- Quiz ---------- */
+.q-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-weight:800;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.q-head b{color:var(--navy)}
+.progress{height:8px;border-radius:99px;background:#dbe8fb;overflow:hidden}
+.progress div{height:100%;width:0;background:linear-gradient(90deg,var(--blue-soft),var(--blue));border-radius:99px;transition:width .4s ease}
+.q-prompt{margin:0;font-family:var(--font-display);font-size:22px;font-weight:600;color:var(--navy)}
+.options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (max-width:560px){.options{grid-template-columns:minmax(0,1fr)}}
+.opt{text-align:left;background:#fff;border:2px solid var(--line);border-radius:16px;padding:14px 16px;font-family:var(--font-display);font-weight:500;font-size:19px;line-height:1.25;transition:border-color .15s,background .15s,transform .15s,opacity .2s}
+.opt:hover:not(:disabled){border-color:var(--blue);transform:translateY(-2px)}
+.opt.correct{background:var(--good-bg);border-color:var(--good)}
+.opt.wrong{background:var(--bad-bg);border-color:var(--bad);animation:shake .35s}
+.opt:disabled{cursor:default}
+.opt:disabled:not(.correct):not(.wrong){opacity:.55}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.feedback{min-height:24px;font-weight:700;display:flex;flex-direction:column;gap:6px}
+.feedback .verdict{font-family:var(--font-display);font-size:20px;font-weight:600}
+.feedback .good{color:var(--good)}.feedback .bad{color:var(--bad)}
+.end{text-align:center;align-items:center;padding:12px 0}
+.end .big{font-family:var(--font-display);font-size:64px;font-weight:700;color:var(--blue);line-height:1}
+.end p{margin:0;font-weight:700;color:var(--ink-soft)}
+.foot{text-align:center;color:#fff;font-weight:700;font-size:14px;text-shadow:0 1px 10px rgba(5,25,70,.7)}
+
+@media (max-width:560px){.card{padding:16px;border-radius:20px}.tabs button{padding:9px 16px;font-size:16px}.digital{font-size:38px}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+
+<div class="sky" id="sky" data-phase="day" aria-hidden="true">
+  <div class="layer l-day"></div><div class="layer l-evening"></div><div class="layer l-night"></div>
+  <div class="stars" id="stars"><i class="shoot"></i></div>
+  <div class="sun"></div><div class="moon"></div>
+  <div class="clouds"><i class="cloud c1"></i><i class="cloud c2"></i><i class="cloud c3"></i><i class="cloud c4"></i></div>
+  <svg class="hills" viewBox="0 0 1440 220" preserveAspectRatio="none">
+    <path class="ha" d="M0 110 C 180 40 360 60 560 100 S 920 160 1120 90 S 1340 50 1440 80 L1440 220 L0 220 Z"/>
+    <path class="hb" d="M0 160 C 220 110 420 130 640 160 S 1040 200 1240 150 S 1400 130 1440 145 L1440 220 L0 220 Z"/>
+  </svg>
+</div>
+
+<div class="wrap">
+  <header class="bar card">
+    <div class="brand">
+      <h1>Uhrzeit <b>Trainer</b></h1>
+      <p>Learn to tell the time in German</p>
+    </div>
+    <div class="skybox">
+      <span class="chip-live" id="skychip"><i></i><span id="skytext">Live sky</span></span>
+      <div class="seg" role="group" aria-label="Sky preview" id="skyseg">
+        <button type="button" data-sky="auto" aria-pressed="true">Auto</button>
+        <button type="button" data-sky="day" aria-pressed="false">Tag</button>
+        <button type="button" data-sky="evening" aria-pressed="false">Abend</button>
+        <button type="button" data-sky="night" aria-pressed="false">Nacht</button>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Mode" id="tabs">
+    <button type="button" role="tab" data-mode="learn" aria-selected="true">Learn</button>
+    <button type="button" role="tab" data-mode="quiz" aria-selected="false">Quiz</button>
+    <button type="button" role="tab" data-mode="practice" aria-selected="false">Practice</button>
+  </nav>
+
+  <main class="grid">
+    <section class="card clock-card" aria-label="Clock">
+      <svg class="clock" id="clock" viewBox="0 0 400 400" tabindex="0" role="img" aria-label="Analog clock. Drag the hands, click a number, or use the arrow keys.">
+        <defs><radialGradient id="face" cx="50%" cy="45%" r="60%"><stop offset="0%" stop-color="#ffffff"/><stop offset="100%" stop-color="#e6f1ff"/></radialGradient></defs>
+        <circle cx="200" cy="200" r="194" fill="url(#face)" stroke="#1d6fe8" stroke-width="10"/>
+        <circle cx="200" cy="200" r="182" fill="none" stroke="#cfe0f7" stroke-width="1.5"/>
+        <g id="ticks"></g><g id="mlabs"></g><g id="nums"></g>
+        <g class="hand" id="hHand"><line x1="200" y1="214" x2="200" y2="128" stroke="#0b2a5b" stroke-width="11" stroke-linecap="round"/><circle cx="200" cy="128" r="7" fill="#fff"/></g>
+        <g class="hand" id="mHand"><line x1="200" y1="222" x2="200" y2="62" stroke="#1d6fe8" stroke-width="6" stroke-linecap="round"/><circle cx="200" cy="62" r="8" fill="#fff" stroke="#1d6fe8" stroke-width="3"/></g>
+        <circle cx="200" cy="200" r="11" fill="#0b2a5b"/><circle cx="200" cy="200" r="4" fill="#fff"/>
+      </svg>
+      <div class="digital" id="digital" aria-live="polite">1:20</div>
+      <div class="controls" id="controls">
+        <div class="seg" role="group" aria-label="Which hand to move" id="handseg">
+          <button type="button" data-hand="hour" aria-pressed="false">Hour hand</button>
+          <button type="button" data-hand="min" aria-pressed="true">Minute hand</button>
+        </div>
+        <div class="ctl-row">
+          <div class="stepper"><button type="button" data-step="h-" aria-label="Previous hour">&minus;</button><span>Hour</span><button type="button" data-step="h+" aria-label="Next hour">+</button></div>
+          <div class="stepper"><button type="button" data-step="m-" aria-label="Back 5 minutes">&minus;</button><span>5 min</span><button type="button" data-step="m+" aria-label="Forward 5 minutes">+</button></div>
+        </div>
+        <div class="mins" id="mins" role="group" aria-label="Set minutes"></div>
+      </div>
+    </section>
+
+    <section class="card panel" aria-label="Lesson">
+      <!-- Learn -->
+      <section id="p-learn">
+        <div class="answer">
+          <p class="eyebrow">In German</p>
+          <p class="de-sentence" id="L-de" aria-live="polite"></p>
+          <p class="en-sentence" id="L-en"></p>
+          <div class="answer-foot"><button type="button" class="btn sm speak">Listen</button></div>
+        </div>
+        <h3>Word by word</h3>
+        <div class="words" id="L-words"></div>
+        <p class="note" id="L-note"></p>
+        <h3>Try these with 1 o'clock</h3>
+        <div class="quick" id="L-quick" role="group" aria-label="Examples"></div>
+        <h3>The six building blocks</h3>
+        <div class="rules" id="L-rules"></div>
+      </section>
+      <!-- Practice -->
+      <section id="p-practice" hidden>
+        <div class="answer">
+          <p class="eyebrow">Move the hands and see it in German</p>
+          <p class="de-sentence" id="P-de" aria-live="polite"></p>
+          <p class="en-sentence" id="P-en"></p>
+          <div class="answer-foot"><button type="button" class="btn sm speak">Listen</button></div>
+        </div>
+        <details class="how"><summary>Show word by word</summary><div class="words" id="P-words"></div><p class="note" id="P-note" style="margin-top:12px"></p></details>
+        <h3>Discovered patterns <span id="P-count" style="color:var(--ink-soft);font-weight:500;font-size:16px"></span></h3>
+        <div class="dots" id="P-dots"></div>
+      </section>
+      <!-- Quiz -->
+      <section id="p-quiz" hidden>
+        <div id="Q-play" style="display:flex;flex-direction:column;gap:16px">
+          <div class="q-head"><span>Question <b id="Q-n">1</b> / 10</span><span>Score <b id="Q-score">0</b></span><span>Streak <b id="Q-streak">0</b></span></div>
+          <div class="progress" aria-hidden="true"><div id="Q-bar"></div></div>
+          <p class="q-prompt">What time is it? Pick the correct German sentence.</p>
+          <div class="options" id="Q-opts"></div>
+          <div class="feedback" id="Q-fb" aria-live="polite"></div>
+          <div><button type="button" class="btn" id="Q-next" hidden>Next question</button></div>
+        </div>
+        <div class="end" id="Q-end" hidden style="display:none;flex-direction:column;gap:12px">
+          <p class="eyebrow">Round finished</p>
+          <div class="big" id="E-score">0 / 10</div>
+          <p id="E-msg"></p><p id="E-best"></p>
+          <div><button type="button" class="btn" id="Q-again">Play again</button></div>
+        </div>
+      </section>
+    </section>
+  </main>
+  <p class="foot">Tip: the sky follows your local time. Evening starts at 15:00, night at 19:00.</p>
+</div>
+
+<script>
+(()=>{
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+/*LOGIC*/
+const HDE=['','eins','zwei','drei','vier','fünf','sechs','sieben','acht','neun','zehn','elf','zwölf'];
+const HEN=['','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve'];
+const nextH=h=>h%12+1, prevH=h=>(h+10)%12+1;
+function phrase(h,m){
+  const n=nextH(h), W=(de,en,k)=>({de,en,k});
+  const es=[W('Es','it','plain'),W('ist','is','plain')];
+  const hr=(x,uhr)=>W(uhr&&x===1?'ein':HDE[x],HEN[x],'hour');
+  const NM={5:['fünf','five'],10:['zehn','ten'],20:['zwanzig','twenty'],25:['fünf','five'],35:['fünf','five'],40:['zwanzig','twenty'],50:['zehn','ten'],55:['fünf','five']};
+  const num=()=>W(NM[m][0],NM[m][1],'num');
+  const nach=W('nach','past','nach'), vor=W('vor','to / before','vor'), halb=W('halb','half (to the next hour)','halb'), vtl=W('Viertel','quarter','viertel');
+  let words,en,rules,note;
+  switch(m){
+    case 0: words=[...es,hr(h,true),W('Uhr',"o'clock",'uhr')]; en=`It is ${HEN[h]} o'clock.`; rules=['uhr'];
+      note=`On the hour you say the number plus “Uhr”. For one o'clock it is “ein Uhr”, not “eins Uhr”.`; break;
+    case 5: case 10: case 20: words=[...es,num(),nach,hr(h)]; en=`It is ${NM[m][1]} past ${HEN[h]}.`; rules=['nach'];
+      note=`“nach” counts the minutes after the hour: ${m} minutes after ${HEN[h]}.`; break;
+    case 15: words=[...es,vtl,nach,hr(h)]; en=`It is a quarter past ${HEN[h]}.`; rules=['viertel-nach'];
+      note=`“Viertel nach” means quarter past: 15 minutes after the hour.`; break;
+    case 25: words=[...es,num(),vor,halb,hr(n)]; en=`It is twenty-five past ${HEN[h]}.`; rules=['vor','halb'];
+      note=`“fünf vor halb ${HDE[n]}” means five minutes before “halb ${HDE[n]}”. And “halb ${HDE[n]}” is ${h}:30, so this is ${h}:25.`; break;
+    case 30: words=[...es,halb,hr(n)]; en=`It is half past ${HEN[h]}.`; rules=['halb'];
+      note=`“halb ${HDE[n]}” means half way to ${HEN[n]}, so it is ${h}:30. The hour you say is the next one.`; break;
+    case 35: words=[...es,num(),nach,halb,hr(n)]; en=`It is twenty-five to ${HEN[n]}.`; rules=['nach','halb'];
+      note=`“fünf nach halb ${HDE[n]}” means five minutes after “halb ${HDE[n]}” (${h}:30), so this is ${h}:35.`; break;
+    case 40: case 50: case 55: words=[...es,num(),vor,hr(n)]; en=`It is ${NM[m][1]} to ${HEN[n]}.`; rules=['vor'];
+      note=`“vor” counts the minutes left until the next hour: ${60-m} minutes before ${HEN[n]}.`; break;
+    case 45: words=[...es,vtl,vor,hr(n)]; en=`It is a quarter to ${HEN[n]}.`; rules=['viertel-vor'];
+      note=`“Viertel vor” means quarter to: 15 minutes before the next hour.`; break;
+  }
+  return {words,en,rules,note,de:words.map(w=>w.de).join(' ')+'.'};
+}
+/*END*/
+
+const MINS=[0,5,10,15,20,25,30,35,40,45,50,55];
+const S={h:1,m:20,hand:'min',mode:'learn'};
+let free={h:1,m:20}, revealed=true, lastM=null, drag=false;
+const svg=$('#clock'), hHand=$('#hHand'), mHand=$('#mHand');
+const NS='http://www.w3.org/2000/svg';
+const mk=(tag,attrs,parent)=>{const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);parent&&parent.appendChild(e);return e};
+const pol=(r,deg)=>{const a=(deg-90)*Math.PI/180;return [200+r*Math.cos(a),200+r*Math.sin(a)]};
+
+/* ---- clock face ---- */
+for(let i=0;i<60;i++){
+  const big=i%5===0,[x1,y1]=pol(big?166:174,i*6),[x2,y2]=pol(182,i*6);
+  mk('line',{x1,y1,x2,y2,stroke:big?'#1d6fe8':'#9bb8e6','stroke-width':big?3:1.5,'stroke-linecap':'round'},$('#ticks'));
+}
+MINS.slice(1).concat(0).forEach((v,i)=>{ /* labels 5,10,...,60 at the minute positions */
+  const [x,y]=pol(155,(i+1)*30), t=mk('text',{x,y,class:'mlab'},$('#mlabs')); t.textContent=(i+1)*5;
+});
+const numEls={};
+for(let n=1;n<=12;n++){
+  const [x,y]=pol(124,n*30), g=mk('g',{class:'num'},$('#nums'));
+  mk('circle',{cx:x,cy:y,r:25},g); const t=mk('text',{x,y:y+1},g); t.textContent=n; numEls[n]=g;
+}
+
+/* ---- hands ---- */
+const cur={h:0,m:0};
+function setAngle(k,el,target){const d=((target-cur[k])%360+540)%360-180;cur[k]+=d;el.style.transform=`rotate(${cur[k]}deg)`}
+
+/* ---- pointer / keyboard ---- */
+function angleAt(e){const r=svg.getBoundingClientRect(),dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2);return (Math.atan2(dx,-dy)*180/Math.PI+360)%360}
+function applyAngle(a,first){
+  if(S.hand==='hour'){const h=Math.round(a/30)%12;S.h=h===0?12:h}
+  else{
+    const m=(Math.round(a/30)%12)*5;
+    if(!first&&lastM!==null){
+      if(lastM>=45&&m<=15)S.h=nextH(S.h); else if(lastM<=15&&m>=45)S.h=prevH(S.h);
+    }
+    S.m=m;lastM=m;
+  }
+  update();
+}
+svg.addEventListener('pointerdown',e=>{
+  if(S.mode==='quiz')return;
+  drag=true;svg.setPointerCapture(e.pointerId);svg.classList.add('dragging');applyAngle(angleAt(e),true);
+});
+svg.addEventListener('pointermove',e=>{if(drag)applyAngle(angleAt(e),false)});
+const endDrag=()=>{drag=false;svg.classList.remove('dragging')};
+svg.addEventListener('pointerup',endDrag);svg.addEventListener('pointercancel',endDrag);
+function stepMin(d){S.m+=5*d;if(S.m>=60){S.m-=60;S.h=nextH(S.h)}if(S.m<0){S.m+=60;S.h=prevH(S.h)}update()}
+function stepHour(d){S.h=d>0?nextH(S.h):prevH(S.h);update()}
+svg.addEventListener('keydown',e=>{
+  if(S.mode==='quiz')return;
+  const d=(e.key==='ArrowRight'||e.key==='ArrowUp')?1:(e.key==='ArrowLeft'||e.key==='ArrowDown')?-1:0;
+  if(!d)return;e.preventDefault();S.hand==='hour'?stepHour(d):stepMin(d);
+});
+$$('[data-step]').forEach(b=>b.addEventListener('click',()=>{const s=b.dataset.step;s[0]==='h'?stepHour(s[1]==='+'?1:-1):stepMin(s[1]==='+'?1:-1)}));
+$$('[data-hand]').forEach(b=>b.addEventListener('click',()=>{S.hand=b.dataset.hand;$$('[data-hand]').forEach(x=>x.setAttribute('aria-pressed',x===b));}));
+const minsBox=$('#mins');
+MINS.forEach(m=>{const b=document.createElement('button');b.type='button';b.dataset.m=m;b.textContent=':'+String(m).padStart(2,'0');b.addEventListener('click',()=>{S.m=m;update()});minsBox.appendChild(b)});
+
+/* ---- panels: learn / practice ---- */
+const wordsHTML=p=>p.words.map((w,i)=>`<div class="w k-${w.k}" style="animation-delay:${i*45}ms"><b>${w.de}</b><span>${w.en}</span></div>`).join('');
+const sentHTML=p=>p.words.map(w=>`<span class="k-${w.k}">${w.de}</span>`).join(' ')+'.';
+const RULES=[
+  {key:'uhr',de:'Uhr',en:"o'clock",ex:'drei Uhr',t:[3,0]},
+  {key:'nach',de:'nach',en:'past',ex:'zehn nach drei',t:[3,10]},
+  {key:'vor',de:'vor',en:'to / before',ex:'zehn vor vier',t:[3,50]},
+  {key:'halb',de:'halb',en:'half way to the next hour',ex:'halb vier',t:[3,30]},
+  {key:'viertel-nach',de:'Viertel nach',en:'quarter past',ex:'Viertel nach drei',t:[3,15]},
+  {key:'viertel-vor',de:'Viertel vor',en:'quarter to',ex:'Viertel vor vier',t:[3,45]}];
+$('#L-rules').innerHTML=RULES.map(r=>`<div class="rule" data-key="${r.key}"><div class="rt k-${r.key.split('-')[0]}">${r.de}</div><div class="re">${r.en}</div><div class="rx">${r.ex} = ${r.t[0]}:${String(r.t[1]).padStart(2,'0')}</div><button type="button" class="btn ghost sm" data-h="${r.t[0]}" data-m="${r.t[1]}">Show on clock</button></div>`).join('');
+$('#L-quick').innerHTML=[0,5,15,20,30,45,55].map(m=>`<button type="button" data-h="1" data-m="${m}" aria-pressed="false">1:${String(m).padStart(2,'0')}</button>`).join('');
+$$('#L-rules [data-h],#L-quick [data-h]').forEach(b=>b.addEventListener('click',()=>{S.h=+b.dataset.h;S.m=+b.dataset.m;update()}));
+const seen=new Set();
+$('#P-dots').innerHTML=MINS.map(m=>`<i data-m="${m}">:${String(m).padStart(2,'0')}</i>`).join('');
+let currentDe='';
+$$('.speak').forEach(b=>{
+  if(!('speechSynthesis' in window)){b.hidden=true;return}
+  b.addEventListener('click',()=>{try{const u=new SpeechSynthesisUtterance(currentDe);u.lang='de-DE';u.rate=.9;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(_){}});
+});
+
+function update(){
+  setAngle('h',hHand,(S.h%12+S.m/60)*30);
+  setAngle('m',mHand,S.m*6);
+  for(let n=1;n<=12;n++)numEls[n].classList.toggle('is-hour',n===S.h);
+  const mn=S.m/5||12; for(let n=1;n<=12;n++)numEls[n].classList.toggle('is-min',n===mn);
+  $('#digital').innerHTML=(S.mode==='quiz'&&!revealed)?'&ndash;:&ndash;&ndash;':`${S.h}:${String(S.m).padStart(2,'0')}<small>Uhr</small>`;
+  $$('#mins button').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.m===S.m));
+  if(S.mode==='quiz')return;
+  const p=phrase(S.h,S.m); currentDe=p.de;
+  if(S.mode==='learn'){
+    $('#L-de').innerHTML=sentHTML(p);$('#L-en').textContent=p.en;$('#L-words').innerHTML=wordsHTML(p);$('#L-note').textContent=p.note;
+    $$('#L-rules .rule').forEach(r=>r.classList.toggle('active',p.rules.includes(r.dataset.key)));
+    $$('#L-quick button').forEach(b=>b.setAttribute('aria-pressed',S.h===1&&+b.dataset.m===S.m));
+  }else{
+    seen.add(S.m);
+    $('#P-de').innerHTML=sentHTML(p);$('#P-en').textContent=p.en;$('#P-words').innerHTML=wordsHTML(p);$('#P-note').textContent=p.note;
+    $$('#P-dots i').forEach(i=>i.classList.toggle('on',seen.has(+i.dataset.m)));
+    $('#P-count').textContent=`${seen.size} of 12`;
+  }
+}
+
+/* ---- quiz ---- */
+const Q={i:0,score:0,streak:0,deck:[],cur:null,answered:false,started:false,done:false};
+const shuffle=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const rnd=n=>Math.floor(Math.random()*n);
+function makeOptions(h,m){
+  const correct=phrase(h,m).de, set=new Set();
+  const add=(hh,mm)=>{const t=phrase(hh,mm).de;if(t!==correct)set.add(t)};
+  add(m>=25?prevH(h):nextH(h),m);          /* hour mix-up (halb / vor use the next hour) */
+  if(m!==0&&m!==30)add(h,60-m);             /* nach and vor swapped */
+  while(set.size<3)add(Math.random()<.5?h:1+rnd(12),MINS[rnd(12)]);
+  return shuffle([correct,...[...set].slice(0,3)]);
+}
+function startRound(){
+  Q.i=0;Q.score=0;Q.streak=0;Q.done=false;Q.started=true;
+  Q.deck=shuffle(MINS).slice(0,10).map(m=>({h:1+rnd(12),m}));
+  $('#Q-play').style.display='flex';$('#Q-end').style.display='none';
+  showQ();
+}
+function showQ(){
+  const c=Q.cur=Q.deck[Q.i];Q.answered=false;revealed=false;S.h=c.h;S.m=c.m;
+  const correct=phrase(c.h,c.m).de;
+  $('#Q-opts').innerHTML=makeOptions(c.h,c.m).map(t=>`<button type="button" class="opt" data-t="${t}">${t}</button>`).join('');
+  $$('#Q-opts .opt').forEach(b=>b.addEventListener('click',()=>answer(b,correct)));
+  $('#Q-fb').innerHTML='';$('#Q-next').hidden=true;
+  $('#Q-n').textContent=Q.i+1;$('#Q-score').textContent=Q.score;$('#Q-streak').textContent=Q.streak;
+  $('#Q-bar').style.width=(Q.i/10*100)+'%';
+  update();
+}
+function answer(btn,correct){
+  if(Q.answered)return;Q.answered=true;revealed=true;
+  const ok=btn.dataset.t===correct,p=phrase(Q.cur.h,Q.cur.m);
+  $$('#Q-opts .opt').forEach(b=>{b.disabled=true;if(b.dataset.t===correct)b.classList.add('correct')});
+  if(!ok)btn.classList.add('wrong');
+  if(ok){Q.score++;Q.streak++}else Q.streak=0;
+  $('#Q-score').textContent=Q.score;$('#Q-streak').textContent=Q.streak;
+  $('#Q-bar').style.width=((Q.i+1)/10*100)+'%';
+  $('#Q-fb').innerHTML=`<span class="verdict ${ok?'good':'bad'}">${ok?'Richtig!':'Not quite.'}</span><span>${ok?'':`Correct: ${p.de} `}${p.en}</span><span style="font-weight:600;color:var(--ink-soft)">${p.note}</span>`;
+  const nb=$('#Q-next');nb.textContent=Q.i===9?'See results':'Next question';nb.hidden=false;nb.focus({preventScroll:true});
+  update();
+}
+$('#Q-next').addEventListener('click',()=>{Q.i++;Q.i>=10?endRound():showQ()});
+$('#Q-again').addEventListener('click',startRound);
+function endRound(){
+  Q.done=true;let best=0;
+  try{best=+localStorage.getItem('uhrzeit-best')||0;if(Q.score>best){best=Q.score;localStorage.setItem('uhrzeit-best',best)}}catch(_){best=Math.max(best,Q.score)}
+  $('#Q-play').style.display='none';$('#Q-end').style.display='flex';
+  $('#E-score').textContent=`${Q.score} / 10`;
+  $('#E-msg').textContent=Q.score===10?'Perfekt! Du kannst die Uhrzeit wirklich gut.':Q.score>=7?'Sehr gut! Just a few to polish.':Q.score>=4?'Gut gemacht. Try the Learn tab for the rules, then play again.':'Keep going. The Learn tab explains every pattern.';
+  $('#E-best').textContent=`Best score on this device: ${best} / 10`;
+}
+
+/* ---- modes ---- */
+const MODES=['learn','quiz','practice'];
+function setMode(mode){
+  if(!MODES.includes(mode))return;
+  const was=S.mode;
+  if(was!=='quiz')free={h:S.h,m:S.m};
+  S.mode=mode;
+  $$('#tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.mode===mode));
+  MODES.forEach(m=>{$('#p-'+m).hidden=m!==mode});
+  $('#controls').hidden=mode==='quiz';svg.classList.toggle('locked',mode==='quiz');
+  if(mode==='quiz'){ if(!Q.started)startRound(); else if(!Q.done){S.h=Q.cur.h;S.m=Q.cur.m;revealed=Q.answered;update()} else update(); }
+  else{revealed=true;if(was==='quiz'){S.h=free.h;S.m=free.m}update()}
+  try{if(location.hash!=='#'+mode)location.hash=mode}catch(_){}
+}
+$$('#tabs button').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
+window.addEventListener('hashchange',()=>{const m=location.hash.slice(1);if(MODES.includes(m)&&m!==S.mode)setMode(m)});
+
+/* ---- sky ---- */
+const sky=$('#sky');let skyMode='auto';
+const stars=$('#stars');
+for(let i=0;i<90;i++){const s=document.createElement('i');s.className='star';s.style.left=Math.random()*100+'%';s.style.top=Math.random()*68+'%';
+  s.style.setProperty('--d',(2+Math.random()*3).toFixed(1)+'s');s.style.setProperty('--dl',(-Math.random()*4).toFixed(1)+'s');
+  if(Math.random()<.2){s.style.width=s.style.height='3px'}stars.appendChild(s)}
+const NAMES={day:'Tag',evening:'Abend',night:'Nacht'};
+function skyTick(){
+  const d=new Date();let t=d.getHours()+d.getMinutes()/60;
+  if(skyMode==='day')t=11.5;else if(skyMode==='evening')t=17.3;else if(skyMode==='night')t=23.5;
+  const phase=t>=6&&t<15?'day':t>=15&&t<19?'evening':'night';
+  const p=phase==='night'?(t>=19?t-19:t+5)/11:(t-6)/13;
+  sky.dataset.phase=phase;
+  sky.style.setProperty('--ox',(8+84*p).toFixed(1)+'%');
+  sky.style.setProperty('--oy',(74-60*Math.sin(Math.PI*p)).toFixed(1)+'%');
+  const clock=`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  $('#skytext').textContent=skyMode==='auto'?`${clock} · ${NAMES[phase]}`:`Preview · ${NAMES[phase]}`;
+}
+$$('#skyseg button').forEach(b=>b.addEventListener('click',()=>{skyMode=b.dataset.sky;$$('#skyseg button').forEach(x=>x.setAttribute('aria-pressed',x===b));skyTick()}));
+skyTick();setInterval(skyTick,20000);
+
+/* ---- start ---- */
+update();
+const h0=location.hash.slice(1);if(MODES.includes(h0)&&h0!=='learn')setMode(h0);
+})();
+</script>
+</body>
+</html>
